@@ -1,0 +1,40 @@
+language: 'rust'
+type: 'application'
+  
+fileGroups:
+  sources:
+    - ./src/**/*
+  
+tasks:
+  build:
+    command: cargo build
+    deps:
+      - web:build
+    inputs:
+      - '@globs(sources)'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+    outputs:
+      - target/debug/login-portal
+  run:
+    command: cargo run
+    deps:
+      - build
+  release:
+    command: cargo build --release
+    deps:
+      - web:build
+    inputs:
+      - '@globs(sources)'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+    outputs:
+      - target/release/login-portal
+  test:
+    command: cargo test
+  clean:
+    command: cargo clean
+  doc:
+    command: cargo doc
+  bench:
+    command: cargo bench

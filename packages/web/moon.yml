@@ -1,0 +1,16 @@
+platform: bun
+
+fileGroups:
+  sources:
+    - ./src/**/*
+
+tasks:
+  build:
+    command: bun run build
+    inputs:
+      - '@globs(sources)'
+      - package.json
+      - tsconfig.json
+      - 'vite.config.ts'
+    outputs:
+      - dist/**/*
