@@ -12,5 +12,8 @@ export default defineConfig({
       '~': path.join(__dirname, 'src'),
     },
   },
+  build: {
+    assetsDir: '_login/assets',
+  },
   plugins: [vue()],
 })
