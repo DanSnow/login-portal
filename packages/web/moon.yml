@@ -2,15 +2,12 @@ $schema: 'https://moonrepo.dev/schemas/project.json'
 language: typescript
 platform: bun
 
-fileGroups:
-  sources:
-    - ./src/**/*
-
 tasks:
   build:
     command: bun run build
     inputs:
       - '@globs(sources)'
+      - index.html
       - package.json
       - tsconfig.json
       - 'vite.config.ts'

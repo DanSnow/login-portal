@@ -13,7 +13,7 @@ export default defineConfig({
     },
   },
   build: {
-    assetsDir: '_login/assets',
+    assetsDir: '_auth/assets',
   },
   plugins: [vue()],
 })
