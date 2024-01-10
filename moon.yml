@@ -1,40 +1,50 @@
-$schema: 'https://moonrepo.dev/schemas/project.json'
-language: 'rust'
-type: 'application'
-  
+$schema: "https://moonrepo.dev/schemas/project.json"
+language: "rust"
+type: "application"
+
 fileGroups:
   sources:
     - ./src/**/*
-      
+
 dependsOn:
   - web
-  
+
 tasks:
   build:
     command: cargo build
     deps:
       - ^:build
     inputs:
-      - '@globs(sources)'
+      - "@globs(sources)"
       - packages/web/dist/index.html
-      - 'Cargo.toml'
-      - 'Cargo.lock'
+      - "Cargo.toml"
+      - "Cargo.lock"
     outputs:
       - target/debug/login-portal
   run:
     command: cargo run
     deps:
       - build
-    options:
-      persistent: true
+    local: true
+  caddy:
+    command: caddy run
+    deps:
+      - build
+    local: true
+  serve:
+    command: noop
+    deps:
+      - run
+      - caddy
+    local: true
   release:
     command: cargo build --release
     deps:
       - web:build
     inputs:
-      - '@globs(sources)'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
+      - "@globs(sources)"
+      - "Cargo.toml"
+      - "Cargo.lock"
     outputs:
       - target/release/login-portal
   test:
