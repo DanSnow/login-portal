@@ -5,12 +5,15 @@ type: 'application'
 fileGroups:
   sources:
     - ./src/**/*
+      
+dependsOn:
+  - web
   
 tasks:
   build:
     command: cargo build
     deps:
-      - web:build
+      - ^:build
     inputs:
       - '@globs(sources)'
       - packages/web/dist/index.html
@@ -22,6 +25,8 @@ tasks:
     command: cargo run
     deps:
       - build
+    options:
+      persistent: true
   release:
     command: cargo build --release
     deps:

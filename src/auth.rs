@@ -1,4 +1,4 @@
-use crate::config::{get_user_database, User, UserDatabase};
+use crate::config::{User, UserDatabase};
 use async_trait::async_trait;
 use axum_login::{AuthUser, AuthnBackend, UserId};
 

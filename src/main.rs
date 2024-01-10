@@ -106,8 +106,18 @@ async fn start_server() -> anyhow::Result<()> {
 
 // We use static route matchers ("/" and "/index.html") to serve our home
 // page.
-async fn index_handler() -> impl IntoResponse {
-    static_handler("/index.html".parse::<Uri>().unwrap()).await
+async fn index_handler(auth_session: AuthSession) -> impl IntoResponse {
+    let mut response = static_handler("/index.html".parse::<Uri>().unwrap())
+        .await
+        .into_response();
+
+    if auth_session.user.is_some() {
+        return response;
+    }
+
+    *response.status_mut() = StatusCode::UNAUTHORIZED;
+
+    response
 }
 
 // We use a wildcard matcher ("/dist/*file") to match against everything
