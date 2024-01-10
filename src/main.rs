@@ -19,6 +19,8 @@ use rpassword::prompt_password;
 use rust_embed::RustEmbed;
 use serde_json::json;
 use std::net::SocketAddr;
+use tower_http::trace::{self, TraceLayer};
+use tracing::Level;
 
 use crate::config::get_user_database;
 
@@ -80,6 +82,15 @@ fn hash_password() -> anyhow::Result<()> {
 }
 
 async fn start_server() -> anyhow::Result<()> {
+    tracing_subscriber::fmt()
+        .with_target(false)
+        .compact()
+        .init();
+
+    let trace_layer = TraceLayer::new_for_http()
+        .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
+        .on_response(trace::DefaultOnResponse::new().level(Level::INFO));
+
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store);
 
@@ -94,6 +105,7 @@ async fn start_server() -> anyhow::Result<()> {
         .route("/index.html", get(index_handler))
         .route("/_auth/assets/*file", get(static_handler))
         .layer(auth_layer)
+        .layer(trace_layer)
         .fallback_service(get(not_found));
 
     // Start listening on the given address.
@@ -107,17 +119,15 @@ async fn start_server() -> anyhow::Result<()> {
 // We use static route matchers ("/" and "/index.html") to serve our home
 // page.
 async fn index_handler(auth_session: AuthSession) -> impl IntoResponse {
-    let mut response = static_handler("/index.html".parse::<Uri>().unwrap())
+    let response = static_handler("/index.html".parse::<Uri>().unwrap())
         .await
         .into_response();
 
     if auth_session.user.is_some() {
-        return response;
+        return response.into_response();
     }
 
-    *response.status_mut() = StatusCode::UNAUTHORIZED;
-
-    response
+    (StatusCode::UNAUTHORIZED, response).into_response()
 }
 
 // We use a wildcard matcher ("/dist/*file") to match against everything
@@ -169,7 +179,10 @@ struct LoginForm {
     password: String,
 }
 
-async fn login(mut auth_session: AuthSession, Json(login): Json<LoginForm>) -> impl IntoResponse {
+async fn login(
+    mut auth_session: AuthSession,
+    Json(login): Json<LoginForm>,
+) -> (StatusCode, Json<serde_json::Value>) {
     let user = auth_session
         .backend
         .users
@@ -177,12 +190,12 @@ async fn login(mut auth_session: AuthSession, Json(login): Json<LoginForm>) -> i
         .find(|user| user.email == login.email);
     let user = match user {
         Some(user) => user,
-        None => return StatusCode::UNAUTHORIZED.into_response(),
+        None => return failed_json(StatusCode::UNAUTHORIZED),
     };
     let parsed_hash = PasswordHash::new(&user.password_hash).unwrap();
     let res = match Argon2::default().verify_password(login.password.as_bytes(), &parsed_hash) {
         Ok(_) => user,
-        Err(_) => return StatusCode::UNAUTHORIZED.into_response(),
+        Err(_) => return failed_json(StatusCode::UNAUTHORIZED),
     };
 
     let cred = Credentials {
@@ -191,13 +204,19 @@ async fn login(mut auth_session: AuthSession, Json(login): Json<LoginForm>) -> i
 
     let user = match auth_session.authenticate(cred.clone()).await {
         Ok(Some(user)) => user,
-        Ok(None) => return StatusCode::UNAUTHORIZED.into_response(),
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Ok(None) => return failed_json(StatusCode::UNAUTHORIZED),
+        Err(_) => {
+            return failed_json(StatusCode::INTERNAL_SERVER_ERROR);
+        }
     };
 
     if auth_session.login(&user).await.is_err() {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        return failed_json(StatusCode::INTERNAL_SERVER_ERROR);
     }
 
-    return Json(json!({"ok": true})).into_response();
+    return (StatusCode::OK, Json(json!({"ok": true})));
+}
+
+fn failed_json(code: StatusCode) -> (StatusCode, Json<serde_json::Value>) {
+    (code, Json(json!({"ok": false})))
 }

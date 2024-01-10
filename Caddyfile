@@ -1,0 +1,19 @@
+{
+	auto_https off
+	debug
+}
+
+http://localhost:4000 {
+	route {
+		handle /_auth/* {
+			reverse_proxy localhost:3000
+		}
+
+		forward_auth localhost:3000 {
+			uri /
+			copy_headers Set-Cookie
+		}
+
+		respond "serect content"
+	}
+}

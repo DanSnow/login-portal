@@ -20,6 +20,8 @@ async function handleLogin() {
   })
   if (res.status !== 200) {
     showError.value = true
+  } else {
+    window.location.reload()
   }
 }
 </script>

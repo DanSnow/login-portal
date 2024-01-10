@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "biome lint .",
+    "format": "biome format ."
   },
   "dependencies": {
     "@tanstack/vue-query": "^5.17.9",
