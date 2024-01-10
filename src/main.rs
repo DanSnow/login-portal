@@ -14,11 +14,12 @@ use axum_login::{
     AuthManagerLayerBuilder,
 };
 use clap::{Parser, Subcommand};
-use config::UserDatabase;
+use config::{RawUser, RawUserDatabase, UserDatabase};
 use rpassword::prompt_password;
 use rust_embed::RustEmbed;
+use rustyline::DefaultEditor;
 use serde_json::json;
-use std::net::SocketAddr;
+use std::{collections::HashMap, fs, net::SocketAddr};
 use tower_http::trace::{self, TraceLayer};
 use tracing::Level;
 
@@ -38,6 +39,7 @@ struct Cli {
 #[derive(Subcommand, Clone, Copy, Debug)]
 enum Commands {
     Hash,
+    CreateUser,
     Server,
 }
 
@@ -47,16 +49,45 @@ async fn main() -> anyhow::Result<()> {
     let command = cmd.command.unwrap_or(Commands::Server);
     match command {
         Commands::Hash => hash_password(),
+        Commands::CreateUser => create_user(),
         Commands::Server => start_server().await,
     }
 }
 
+fn create_user() -> anyhow::Result<()> {
+    let mut rl = DefaultEditor::new()?;
+    let username = rl.readline("Username? ")?;
+    let email = rl.readline("Email? ")?;
+    let password_hash = create_hash_password()?;
+
+    let mut users = HashMap::new();
+    users.insert(
+        username,
+        RawUser {
+            email,
+            password_hash,
+        },
+    );
+
+    let db = RawUserDatabase { users };
+
+    fs::write("users.yml", serde_yaml::to_string(&db)?)?;
+    println!("Save to users.yml");
+    Ok(())
+}
+
 fn hash_password() -> anyhow::Result<()> {
+    let password_hash = create_hash_password()?;
+    println!("{}", password_hash);
+    Ok(())
+}
+
+fn create_hash_password() -> anyhow::Result<String> {
     let password = prompt_password("Password: ")?;
     let confirm_password = prompt_password("Comfirn password: ")?;
     if password != confirm_password {
         println!("Passwords do not match");
-        return Ok(());
+        return Err(anyhow::anyhow!("Passwords do not match"));
     }
     let salt = SaltString::generate(&mut OsRng);
 
@@ -77,8 +108,7 @@ fn hash_password() -> anyhow::Result<()> {
     assert!(Argon2::default()
         .verify_password(password.as_bytes(), &parsed_hash)
         .is_ok());
-    println!("{}", password_hash);
-    Ok(())
+    Ok(password_hash)
 }
 
 async fn start_server() -> anyhow::Result<()> {

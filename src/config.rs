@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, env, path::PathBuf, sync::OnceLock};
 
 #[derive(Debug, Clone, Deserialize)]
@@ -16,13 +16,13 @@ pub fn get_env() -> &'static Env {
     })
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RawUser {
     pub email: String,
     pub password_hash: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RawUserDatabase {
     pub users: HashMap<String, RawUser>,
 }
