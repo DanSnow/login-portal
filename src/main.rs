@@ -19,7 +19,7 @@ use rpassword::prompt_password;
 use rust_embed::RustEmbed;
 use rustyline::DefaultEditor;
 use serde_json::json;
-use std::{collections::HashMap, fs, net::SocketAddr};
+use std::{borrow::Cow, collections::HashMap, env, fs, net::SocketAddr};
 use tower_http::trace::{self, TraceLayer};
 use tracing::Level;
 
@@ -139,8 +139,16 @@ async fn start_server() -> anyhow::Result<()> {
         .fallback_service(get(not_found));
 
     // Start listening on the given address.
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("listening on {}", addr);
+    let addr = env::var("HOST")
+        .map(Cow::from)
+        .unwrap_or(Cow::from("127.0.0.1:3000"))
+        .parse::<SocketAddr>()
+        .unwrap_or_else(|err| {
+            tracing::error!(?err, "parse host error, use fallback address");
+            SocketAddr::from(([127, 0, 0, 1], 3000))
+        });
+
+    tracing::info!("listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app.into_make_service()).await?;
     Ok(())
